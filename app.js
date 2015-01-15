@@ -2,22 +2,19 @@ var Lazy = require('lazy');
 var fs = require('fs');
 var logfile = 'access.23.log';
 
-var regexLogLine = /^[0-9a-f.:]+ - - \[([0-9]{2}\/[a-z]{3}\/[0-9]{4}):([0-9]{2}:[0-9]{2}:[0-9]{2}[^\]]*)\] \"([^\"]+)\" [0-9]+ [0-9]+/i;
-
-var currentHour = undefined;
-var currentday = undefined;
-var currentPartLog = undefined;
-
-
 var fd = fs.openSync(logfile, 'r');
 var bufferSize = 16384;
 var buffer = new Buffer(bufferSize);
 var leftOver = '';
 var read, line, idxStart, idx;
+var currentHour = undefined;
+var currentday = undefined;
+var currentPartLog = undefined;
 
+// read the $logfile line by line synchronously and call processLine(line);
 while ((read = fs.readSync(fd, buffer, 0, bufferSize, null)) !== 0) {
     leftOver += buffer.toString('utf8', 0, read);
-    idxStart = 0
+    idxStart = 0;
     while ((idx = leftOver.indexOf("\n", idxStart)) !== -1) {
         line = leftOver.substring(idxStart, idx);
         processLine(line);
@@ -28,7 +25,8 @@ while ((read = fs.readSync(fd, buffer, 0, bufferSize, null)) !== 0) {
 
 
 function processLine(line) {
-    // Remote host, Remote logname, Remote user, time, request, return code, Bytes sent, referer, user agent
+    // apache "combined" LogFormat: Remote host, Remote logname, Remote user, time, request, return code, Bytes sent, referer, user agent
+
     var parts = line.trim().split(/\s+/);
 
     var dateString = parts[3].substring(1); // [02/Jan/2015:04:30:08
@@ -46,23 +44,33 @@ function processLine(line) {
                                     ":" + dateString[5] + // 29
                                     " UTC " + timeOffset)); // +0100
 
-    if (currentHour === undefined) {
+    if (currentHour === undefined) { // first line to process
         currentHour = date.getHours();
         currentday = date.getDate();
-        currentPartLog = date.getTime() + '.part.log';
-        //console.log("new log: " + currentPartLog);
+        currentPartLog = getNewPartFileName(date);
+        console.log("new log: " + currentPartLog + "    new hour: " + zeroInserting(currentHour, 2) + "    day: " + zeroInserting(currentday, 2));
 
-        //fs.writeFileSync(currentPartLog, '');
-
-    } else if (date.getHours() !== currentHour){
+    } else if (date.getHours() !== currentHour) { // next log.part (1h)
         currentHour = date.getHours();
-        currentPartLog = date.getTime() + '.part.log';
-        //console.log("new log: " + currentPartLog);
-        // TODO: make next file
-    }
-
-    if (date.getDate() !== currentday) {
         currentday = date.getDate();
-        console.log(date);
+        currentPartLog = getNewPartFileName(date);
+        console.log("new log: " + currentPartLog + "    new hour: " + zeroInserting(currentHour, 2) + "    day: " + zeroInserting(currentday, 2));
     }
+}
+
+function getNewPartFileName(date) {
+    if (date) {
+        return date.getFullYear().toString()
+             + zeroInserting(date.getMonth().toString(), 2)
+             + zeroInserting(date.getDate().toString(), 2)
+             + zeroInserting(date.getHours().toString(), 2)
+             + '.part.log'; // return: 2014112104.part.log
+    }
+    throw new Error('\'date\' is undefined');
+}
+
+function zeroInserting(input, width, insert) { // 2, 4 , "-"
+    insert = insert || '0';
+    input = input + '';
+    return input.length >= width ? input : new Array(width - input.length + 1).join(insert) + input; // return: "--2"
 }
