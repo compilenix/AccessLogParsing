@@ -1,7 +1,4 @@
 {
 	"name": "Access-Log-Parser",
-	"version": "0.0.1",
-	"dependencies": {
-		"lazy": "*"
-	}
+	"version": "0.0.1"
 }

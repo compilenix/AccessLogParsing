@@ -1,4 +1,3 @@
-var Lazy = require('lazy');
 var fs = require('fs');
 var logfile = 'access.23.log';
 
@@ -44,32 +43,23 @@ function processLine(line) {
                                     ":" + dateString[5] + // 29
                                     " UTC " + timeOffset)); // +0100
 
-    if (currentHour === undefined) { // first line to process
+    if (date.getHours() !== currentHour) { // next log.part (1h)
         currentHour = date.getHours();
         currentday = date.getDate();
         currentPartLog = getNewPartFileName(date);
-        console.log("new log: " + currentPartLog + "    new hour: " + zeroInserting(currentHour, 2) + "    day: " + zeroInserting(currentday, 2));
-
-    } else if (date.getHours() !== currentHour) { // next log.part (1h)
-        currentHour = date.getHours();
-        currentday = date.getDate();
-        currentPartLog = getNewPartFileName(date);
-        console.log("new log: " + currentPartLog + "    new hour: " + zeroInserting(currentHour, 2) + "    day: " + zeroInserting(currentday, 2));
+        console.log("new log: " + currentPartLog + "    new hour: " + InsertingPadding(currentHour, 2) + "    day: " + InsertingPadding(currentday, 2));
     }
 }
 
 function getNewPartFileName(date) {
-    if (date) {
-        return date.getFullYear().toString()
-             + zeroInserting(date.getMonth().toString(), 2)
-             + zeroInserting(date.getDate().toString(), 2)
-             + zeroInserting(date.getHours().toString(), 2)
-             + '.part.log'; // return: 2014112104.part.log
-    }
-    throw new Error('\'date\' is undefined');
+    return date.getFullYear().toString()
+         + InsertingPadding(date.getMonth().toString(), 2)
+         + InsertingPadding(date.getDate().toString(), 2)
+         + InsertingPadding(date.getHours().toString(), 2)
+         + '.part.log'; // return: 2014112104.part.log
 }
 
-function zeroInserting(input, width, insert) { // 2, 4 , "-"
+function InsertingPadding(input, width, insert) { // 2, 4 , "-"
     insert = insert || '0';
     input = input + '';
     return input.length >= width ? input : new Array(width - input.length + 1).join(insert) + input; // return: "--2"
