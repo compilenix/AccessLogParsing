@@ -1,5 +1,6 @@
 var fs = require('fs');
-var logfile = 'access.23.log';
+var logfile = "access.23.log";
+var partsDir = "parts/";
 
 var fd = fs.openSync(logfile, 'r');
 var bufferSize = 16384;
@@ -47,16 +48,19 @@ function processLine(line) {
         currentHour = date.getHours();
         currentday = date.getDate();
         currentPartLog = getNewPartFileName(date);
-        console.log("new log: " + currentPartLog + "    new hour: " + InsertingPadding(currentHour, 2) + "    day: " + InsertingPadding(currentday, 2));
+        console.log(currentPartLog + "    hour: " + InsertingPadding(currentHour, 2) + "    day: " + InsertingPadding(currentday, 2));
     }
+
+    fs.appendFileSync(currentPartLog, line + '\n');
 }
 
 function getNewPartFileName(date) {
-    return date.getFullYear().toString()
+    return partsDir
+         + date.getFullYear().toString()
          + InsertingPadding(date.getMonth().toString(), 2)
          + InsertingPadding(date.getDate().toString(), 2)
          + InsertingPadding(date.getHours().toString(), 2)
-         + '.part.log'; // return: 2014112104.part.log
+         + ".part.log"; // return: 2014112104.part.log
 }
 
 function InsertingPadding(input, width, insert) { // 2, 4 , "-"
