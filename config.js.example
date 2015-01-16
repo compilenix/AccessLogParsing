@@ -1,0 +1,4 @@
+exports.config = {
+	partsDir: 'parts/',
+	displaymode: 'n' // n | q
+};
