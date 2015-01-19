@@ -1,4 +1,5 @@
 exports.config = {
-	partsDir: 'parts/',
-	displaymode: 'n' // n | q
+    partsDir: 'parts/',
+    displaymode: 'n', // n | q
+    buffer: 4096000 // 4M in bytes
 };

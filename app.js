@@ -13,13 +13,12 @@ var currentHour = undefined;
 var currentday = undefined;
 var currentPartLog = undefined;
 var linesprocessed = 0;
-var linesprocessedold = 0;
-var consoleUpdateRate = 1432;
-var linesprocessedtemp = 0;
+var outputChunk = '';
+var outputChunkLimit = (config.buffer / 2);
 
 process.argv.forEach(function(val, index, array) {
-    if (index < 2) {
-        return true;
+    if (index < 2) { // first two args are 'node' and '/path/to/app.js'
+        return true; // equivalent of 'continue'
     }
 
     parseAccessLog(val);
@@ -27,8 +26,9 @@ process.argv.forEach(function(val, index, array) {
 
 
 function parseAccessLog(file) {
+
     var fd = fs.openSync(file, 'r');
-    var bufferSize = 16384;
+    var bufferSize = (config.buffer / 2);
     var buffer = new Buffer(bufferSize);
     var leftOver = '';
     var read, line, idxStart, idx;
@@ -49,18 +49,22 @@ function parseAccessLog(file) {
         idxStart = 0;
         while ((idx = leftOver.indexOf("\n", idxStart)) !== -1) {
             line = leftOver.substring(idxStart, idx);
-            linesprocessed++;
-            linesprocessedtemp++;
             processLine(line);
+            linesprocessed++;
             idxStart = idx + 1;
         }
         leftOver = leftOver.substring(idxStart);
     }
+
+    if (outputChunk.length > 0) {
+        fs.appendFileSync(currentPartLog, outputChunk);
+        outputChunk = '';
+    }
 }
 
-function processLine(line) {
-    // apache "combined" LogFormat: Remote host, Remote logname, Remote user, time, request, return code, Bytes sent, referer, user agent
+// END //
 
+function processLine(line) {
     var date = parseDateFromLogLine(line);
 
     if (date.getHours() !== currentHour) { // next log.part (1h)
@@ -70,28 +74,26 @@ function processLine(line) {
 
         // update stdout
         if (config.displaymode === 'n') {
-            linesprocessedold = linesprocessed;
             stdoutResetLine();
-            process.stdout.write(
-                date.getFullYear().toString() + "-" + 
+            var out = date.getFullYear().toString() + "-" + 
                 InsertingPadding(date.getMonth().toString(), 2) + "-" + 
                 InsertingPadding(date.getDate().toString(), 2) + "  " +
-                InsertingPadding(date.getHours().toString(), 2) + "h  lines: " + linesprocessed.toString());
+                InsertingPadding(date.getHours().toString(), 2) + "h  lines: " + linesprocessed.toString();
+            stdoutWrite(out);
         }
     }
 
-    // update count of procced lines every $consoleUpdateRate lines
-    if (config.displaymode === 'n' && linesprocessedtemp >= consoleUpdateRate) {
-        linesprocessedtemp = 0; // reset counter
-        readline.moveCursor(process.stdout, -linesprocessedold.toString().length, 0); // move cursor left
-        process.stdout.write(linesprocessed.toString());
-        linesprocessedold = linesprocessed;
+    // write every $outputChunkLimit the outputChunk to file
+    if (outputChunk.length >= outputChunkLimit) {
+        fs.appendFileSync(currentPartLog, outputChunk);
+        outputChunk = '';
+    } else {
+        outputChunk += (line + '\n');
     }
-
-    fs.appendFileSync(currentPartLog, line + '\n');
 }
 
 function parseDateFromLogLine(line) {
+    // apache "combined" LogFormat: Remote host, Remote logname, Remote user, time, request, return code, Bytes sent, referer, user agent
     var parts = line.trim().split(/\s+/);
 
     var dateString = parts[3].substring(1); // [02/Jan/2015:04:30:08
@@ -126,7 +128,11 @@ function InsertingPadding(input, width, insert) { // 2, 4 , "-"
 }
 
 function stdoutResetLine() {
-    process.stdout.write("\x1b[2K\x1b[0H");
+    readline.cursorTo(process.stdout, 0);
+}
+
+function stdoutWrite(data) {
+    process.stdout.write(data.toString());
 }
 
 exports.parseAccessLog = parseAccessLog;
